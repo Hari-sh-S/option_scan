@@ -113,6 +113,12 @@ class DataLoader:
         # Load any file to get trading days
         df = self.load("ATM", "CE", expiry_type)
         
+        # Ensure date column is string for comparison
+        if df['date'].dtype == 'object':
+            # Check if it's datetime.date objects
+            if len(df) > 0 and hasattr(df['date'].iloc[0], 'strftime'):
+                df['date'] = df['date'].apply(lambda x: x.strftime('%Y-%m-%d') if hasattr(x, 'strftime') else str(x))
+        
         if start_date:
             df = df[df['date'] >= start_date]
         if end_date:
