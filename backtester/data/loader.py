@@ -49,6 +49,17 @@ class DataLoader:
             if not pd.api.types.is_datetime64_any_dtype(df['datetime']):
                 df['datetime'] = pd.to_datetime(df['datetime'])
             
+            # Convert date column to string format for consistent comparison
+            if 'date' in df.columns:
+                if df['date'].dtype == 'object' and len(df) > 0:
+                    first_val = df['date'].iloc[0]
+                    if hasattr(first_val, 'strftime'):
+                        df['date'] = df['date'].apply(lambda x: x.strftime('%Y-%m-%d') if hasattr(x, 'strftime') else str(x))
+                    elif not isinstance(first_val, str):
+                        df['date'] = df['date'].astype(str)
+                elif df['date'].dtype != 'object':
+                    df['date'] = df['date'].astype(str)
+            
             # Add time column for filtering
             df['time'] = df['datetime'].dt.time
             
@@ -110,14 +121,8 @@ class DataLoader:
                          start_date: str = None, 
                          end_date: str = None) -> List[str]:
         """Get unique trading days in range"""
-        # Load any file to get trading days
+        # Load any file to get trading days (date is already string from load())
         df = self.load("ATM", "CE", expiry_type)
-        
-        # Ensure date column is string for comparison
-        if df['date'].dtype == 'object':
-            # Check if it's datetime.date objects
-            if len(df) > 0 and hasattr(df['date'].iloc[0], 'strftime'):
-                df['date'] = df['date'].apply(lambda x: x.strftime('%Y-%m-%d') if hasattr(x, 'strftime') else str(x))
         
         if start_date:
             df = df[df['date'] >= start_date]
