@@ -53,12 +53,14 @@ def create_equity_chart(equity_curve: List[float],
 
 
 def create_drawdown_chart(equity_curve: List[float],
-                         daily_df: pd.DataFrame = None) -> go.Figure:
-    """Create drawdown chart"""
+                         daily_df: pd.DataFrame = None,
+                         initial_capital: float = 100000) -> go.Figure:
+    """Create drawdown chart in percentage"""
     equity_arr = np.array(equity_curve)
-    peak = np.maximum.accumulate(equity_arr)
-    drawdown = peak - equity_arr
-    drawdown_pct = np.where(peak > 0, drawdown / peak * 100, 0)
+    # Add initial capital to get total equity
+    total_equity = initial_capital + equity_arr
+    peak = np.maximum.accumulate(total_equity)
+    drawdown_pct = np.where(peak > 0, (peak - total_equity) / peak * 100, 0)
     
     if daily_df is not None and not daily_df.empty:
         x_axis = pd.to_datetime(daily_df['date'])
@@ -69,7 +71,7 @@ def create_drawdown_chart(equity_curve: List[float],
     
     fig.add_trace(go.Scatter(
         x=x_axis,
-        y=-drawdown,  # Negative to show as underwater
+        y=-drawdown_pct,  # Negative to show as underwater
         mode='lines',
         name='Drawdown',
         line=dict(color='#FF5252', width=1),
@@ -78,12 +80,13 @@ def create_drawdown_chart(equity_curve: List[float],
     ))
     
     fig.update_layout(
-        title='Drawdown',
+        title='Drawdown (%)',
         xaxis_title='Date' if daily_df is not None else 'Trade #',
-        yaxis_title='Drawdown (₹)',
+        yaxis_title='Drawdown (%)',
         template='plotly_dark',
         hovermode='x unified',
-        height=300
+        height=300,
+        yaxis=dict(ticksuffix='%')
     )
     
     return fig
