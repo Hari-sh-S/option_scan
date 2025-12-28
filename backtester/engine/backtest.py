@@ -97,7 +97,8 @@ class BacktestEngine:
     def run(self, strategy: Strategy, 
             start_date: str, end_date: str,
             slippage_pct: float = 0.05,
-            brokerage_per_lot: float = 20) -> BacktestResult:
+            brokerage_per_lot: float = 20,
+            progress_callback=None) -> BacktestResult:
         """
         Run backtest
         
@@ -107,6 +108,7 @@ class BacktestEngine:
             end_date: 'YYYY-MM-DD'
             slippage_pct: Slippage percentage
             brokerage_per_lot: Brokerage per lot (one-way)
+            progress_callback: Optional callback(day_idx, total_days, date) for progress updates
         
         Returns:
             BacktestResult with all results
@@ -120,12 +122,16 @@ class BacktestEngine:
         expiry_type = strategy.legs[0].config.expiry_type if strategy.legs else "WEEK"
         trading_days = self.loader.get_trading_days(expiry_type, start_date, end_date)
         
+        total_days = len(trading_days)
         print(f"Running backtest from {start_date} to {end_date}")
-        print(f"Trading days: {len(trading_days)}")
+        print(f"Trading days: {total_days}")
         
         for day_idx, date in enumerate(trading_days):
-            if (day_idx + 1) % 50 == 0:
-                print(f"Processing day {day_idx + 1}/{len(trading_days)}: {date}")
+            # Call progress callback if provided
+            if progress_callback:
+                progress_callback(day_idx, total_days, date)
+            elif (day_idx + 1) % 50 == 0:
+                print(f"Processing day {day_idx + 1}/{total_days}: {date}")
             
             day_result = self._run_day(
                 strategy, date, slippage_pct, brokerage_per_lot

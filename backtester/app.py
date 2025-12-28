@@ -127,56 +127,91 @@ def main():
         # Run backtest button
         st.markdown("---")
         if st.button("🚀 Run Backtest", type="primary", use_container_width=True):
-            with st.spinner("Running backtest..."):
-                try:
-                    # Create strategy
-                    strategy_config = StrategyConfig(
-                        name="Custom Strategy",
-                        mode=StrategyMode[strategy_settings["mode"]],
-                        entry_time=strategy_settings["entry_time"],
-                        exit_time=strategy_settings["exit_time"],
-                        no_entry_after=strategy_settings["no_entry_after"],
-                        max_loss=strategy_settings["max_loss"],
-                        max_profit=strategy_settings["max_profit"]
-                    )
+            try:
+                # Create strategy
+                strategy_config = StrategyConfig(
+                    name="Custom Strategy",
+                    mode=StrategyMode[strategy_settings["mode"]],
+                    entry_time=strategy_settings["entry_time"],
+                    exit_time=strategy_settings["exit_time"],
+                    no_entry_after=strategy_settings["no_entry_after"],
+                    max_loss=strategy_settings["max_loss"],
+                    max_profit=strategy_settings["max_profit"]
+                )
+                
+                strategy = Strategy(config=strategy_config)
+                
+                # Add legs
+                for config in leg_configs:
+                    strategy.add_leg(config)
+                
+                # Run backtest with progress
+                engine = BacktestEngine(loader)
+                
+                # Progress tracking
+                import time as time_module
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                start_time = time_module.time()
+                
+                def update_progress(day_idx, total_days, date):
+                    progress = (day_idx + 1) / total_days
+                    progress_bar.progress(progress)
                     
-                    strategy = Strategy(config=strategy_config)
-                    
-                    # Add legs
-                    for config in leg_configs:
-                        strategy.add_leg(config)
-                    
-                    # Run backtest
-                    engine = BacktestEngine(loader)
-                    result = engine.run(
-                        strategy,
-                        start_date,
-                        end_date,
-                        slippage_pct=cost_settings["slippage_pct"],
-                        brokerage_per_lot=cost_settings["brokerage_per_lot"]
-                    )
-                    
-                    # Calculate metrics
-                    calculator = MetricsCalculator()
-                    metrics = calculator.calculate(result)
-                    
-                    # Store in session state
-                    st.session_state.result = result
-                    st.session_state.metrics = metrics
-                    st.session_state.daily_df = result.to_daily_df()
-                    st.session_state.trades_df = result.to_trades_df()
-                    
-                    # Run Monte Carlo if enabled
-                    if run_monte_carlo:
-                        mc_sim = MonteCarloSimulator(num_simulations=mc_simulations)
-                        st.session_state.mc_result = mc_sim.simulate(result)
-                    
-                    st.success(f"Backtest complete! {result.num_trades} trades over {result.num_days} days")
-                    
-                except Exception as e:
-                    st.error(f"Backtest failed: {e}")
-                    import traceback
-                    st.code(traceback.format_exc())
+                    elapsed = time_module.time() - start_time
+                    if day_idx > 0:
+                        avg_time_per_day = elapsed / (day_idx + 1)
+                        remaining_days = total_days - day_idx - 1
+                        remaining_time = avg_time_per_day * remaining_days
+                        
+                        elapsed_str = f"{int(elapsed//60)}m {int(elapsed%60)}s"
+                        remaining_str = f"{int(remaining_time//60)}m {int(remaining_time%60)}s"
+                        
+                        status_text.markdown(
+                            f"**Processing:** {date} ({day_idx + 1}/{total_days}) | "
+                            f"**Elapsed:** {elapsed_str} | **Remaining:** {remaining_str}"
+                        )
+                    else:
+                        status_text.markdown(f"**Processing:** {date} ({day_idx + 1}/{total_days})")
+                
+                result = engine.run(
+                    strategy,
+                    start_date,
+                    end_date,
+                    slippage_pct=cost_settings["slippage_pct"],
+                    brokerage_per_lot=cost_settings["brokerage_per_lot"],
+                    progress_callback=update_progress
+                )
+                
+                # Clear progress indicators
+                progress_bar.empty()
+                status_text.empty()
+                
+                # Calculate metrics
+                calculator = MetricsCalculator()
+                metrics = calculator.calculate(result)
+                
+                # Store in session state
+                st.session_state.result = result
+                st.session_state.metrics = metrics
+                st.session_state.daily_df = result.to_daily_df()
+                st.session_state.trades_df = result.to_trades_df()
+                
+                # Run Monte Carlo if enabled
+                if run_monte_carlo:
+                    mc_status = st.empty()
+                    mc_status.markdown("**Running Monte Carlo simulations...**")
+                    mc_sim = MonteCarloSimulator(num_simulations=mc_simulations)
+                    st.session_state.mc_result = mc_sim.simulate(result)
+                    mc_status.empty()
+                
+                total_time = time_module.time() - start_time
+                st.success(f"✅ Backtest complete! {result.num_trades} trades over {result.num_days} days in {total_time:.1f}s")
+                
+            except Exception as e:
+                st.error(f"Backtest failed: {e}")
+                import traceback
+                st.code(traceback.format_exc())
     
     with tab2:
         if 'result' not in st.session_state:
