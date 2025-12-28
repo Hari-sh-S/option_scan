@@ -15,10 +15,8 @@ venv/
 *.log
 logs/
 
-# Data files
-*.parquet
+# Data files (except parquet which goes to LFS)
 *.csv
-historical_data/
 
 # IDE
 .vscode/
