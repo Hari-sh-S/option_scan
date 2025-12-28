@@ -232,13 +232,15 @@ def main():
             with col1:
                 st.plotly_chart(
                     create_equity_chart(result.equity_curve, daily_df),
-                    use_container_width=True
+                    use_container_width=True,
+                    key="equity_chart"
                 )
             
             with col2:
                 st.plotly_chart(
                     create_drawdown_chart(result.equity_curve, daily_df),
-                    use_container_width=True
+                    use_container_width=True,
+                    key="drawdown_chart"
                 )
             
             # Monthly heatmap and distribution
@@ -247,13 +249,15 @@ def main():
             with col1:
                 st.plotly_chart(
                     create_monthly_heatmap(daily_df),
-                    use_container_width=True
+                    use_container_width=True,
+                    key="monthly_heatmap"
                 )
             
             with col2:
                 st.plotly_chart(
                     create_trade_distribution(st.session_state.trades_df),
-                    use_container_width=True
+                    use_container_width=True,
+                    key="trade_distribution"
                 )
             
             # Monte Carlo results
