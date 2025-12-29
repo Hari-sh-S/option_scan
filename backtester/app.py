@@ -16,6 +16,7 @@ from data.resolver import InstrumentResolver
 from engine.leg import Leg, LegConfig, LegAction
 from engine.strategy import Strategy, StrategyConfig, StrategyMode
 from engine.backtest import BacktestEngine
+from engine.backtest_optimized import OptimizedBacktestEngine
 from metrics.calculator import MetricsCalculator
 from metrics.monte_carlo import MonteCarloSimulator
 from ui.components import (
@@ -36,18 +37,236 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS for better styling
+# Custom CSS for modern, high-contrast styling
 st.markdown("""
 <style>
-    .main-header {
-        font-size: 2rem;
-        font-weight: 700;
-        color: #00C853;
+    /* Keep sidebar always expanded */
+    [data-testid="stSidebar"][aria-expanded="false"] {
+        display: block !important;
+        min-width: 300px !important;
     }
+    
+    /* Reduce overall padding and spacing */
+    .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 0.5rem !important;
+    }
+    
+    /* Compact header */
+    h1 {
+        font-size: 1.8rem !important;
+        margin-bottom: 0.2rem !important;
+        color: #ffffff !important;
+    }
+    
+    h2, h3 {
+        font-size: 1.1rem !important;
+        margin-top: 0.5rem !important;
+        margin-bottom: 0.3rem !important;
+        color: #e0e0e0 !important;
+    }
+    
+    /* HIGH CONTRAST Labels - Bright white */
+    .stSelectbox label, .stNumberInput label, .stDateInput label, 
+    .stTimeInput label, .stCheckbox label, .stRadio label {
+        font-size: 0.9rem !important;
+        margin-bottom: 0.2rem !important;
+        font-weight: 600 !important;
+        color: #ffffff !important;
+    }
+    
+    /* Reduce widget spacing */
+    .stSelectbox, .stNumberInput, .stTextInput, 
+    .stDateInput, .stTimeInput {
+        margin-bottom: 0.5rem !important;
+    }
+    
+    /* HIGH CONTRAST Input fields - Light background with dark text */
+    .stSelectbox > div > div,
+    .stNumberInput > div > div > input,
+    .stTextInput > div > div > input {
+        background-color: #2d2d3d !important;
+        color: #ffffff !important;
+        border: 1px solid #4a4a6a !important;
+        border-radius: 6px !important;
+    }
+    
+    /* Dropdown options - Dark with white text */
+    [data-baseweb="select"] {
+        background-color: #2d2d3d !important;
+    }
+    
+    [data-baseweb="menu"] {
+        background-color: #2d2d3d !important;
+        border: 1px solid #4a4a6a !important;
+    }
+    
+    [data-baseweb="menu"] li {
+        color: #ffffff !important;
+    }
+    
+    [data-baseweb="menu"] li:hover {
+        background-color: #4a4a6a !important;
+    }
+    
+    /* HIGH CONTRAST Metrics styling */
     .stMetric {
-        background-color: #1E1E1E;
-        padding: 10px;
-        border-radius: 5px;
+        background-color: #1e1e2e !important;
+        padding: 1rem !important;
+        border-radius: 8px;
+        border-left: 4px solid #4CAF50 !important;
+    }
+    
+    .stMetric label {
+        font-size: 0.85rem !important;
+        color: #b0b0b0 !important;
+    }
+    
+    .stMetric [data-testid="stMetricValue"] {
+        font-size: 1.4rem !important;
+        font-weight: 700 !important;
+        color: #ffffff !important;
+    }
+    
+    /* Compact dividers */
+    hr {
+        margin: 0.8rem 0 !important;
+        border-color: #4a4a6a !important;
+        opacity: 0.5;
+    }
+    
+    /* HIGH CONTRAST Button styling */
+    .stButton > button {
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        padding: 0.6rem 1.2rem !important;
+        transition: all 0.2s ease;
+        border: 1px solid #4a4a6a !important;
+        background-color: #2d2d3d !important;
+        color: #ffffff !important;
+    }
+    
+    .stButton > button:hover {
+        background-color: #3d3d5d !important;
+        border-color: #6a6a8a !important;
+    }
+    
+    /* Primary button - Bright green */
+    .stButton > button[kind="primary"] {
+        background-color: #4CAF50 !important;
+        border-color: #4CAF50 !important;
+        color: #ffffff !important;
+    }
+    
+    .stButton > button[kind="primary"]:hover {
+        background-color: #66BB6A !important;
+        border-color: #66BB6A !important;
+    }
+    
+    /* HIGH CONTRAST Expander styling */
+    .streamlit-expanderHeader {
+        font-size: 0.95rem !important;
+        font-weight: 600 !important;
+        background-color: #252538 !important;
+        border: 1px solid #3a3a5a !important;
+        border-radius: 6px !important;
+        padding: 0.6rem 1rem !important;
+        color: #ffffff !important;
+    }
+    
+    .streamlit-expanderContent {
+        background-color: #1e1e2e !important;
+        border: 1px solid #3a3a5a !important;
+        border-top: none !important;
+        border-radius: 0 0 6px 6px !important;
+        padding: 1rem !important;
+    }
+    
+    /* HIGH CONTRAST Sidebar styling */
+    [data-testid="stSidebar"] {
+        background-color: #161625 !important;
+        min-width: 280px !important;
+    }
+    
+    [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
+        font-size: 1.1rem !important;
+        color: #4CAF50 !important;
+        font-weight: 700 !important;
+    }
+    
+    [data-testid="stSidebar"] label {
+        color: #e0e0e0 !important;
+        font-weight: 500 !important;
+    }
+    
+    /* Tab styling - HIGH CONTRAST */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0.5rem;
+        background-color: #1e1e2e !important;
+        border-radius: 8px;
+        padding: 0.3rem;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        padding: 0.6rem 1.2rem !important;
+        font-size: 0.95rem !important;
+        font-weight: 500 !important;
+        color: #b0b0b0 !important;
+        background-color: transparent !important;
+        border-radius: 6px !important;
+    }
+    
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        color: #ffffff !important;
+        background-color: #4CAF50 !important;
+    }
+    
+    /* Remove extra margins from columns */
+    [data-testid="column"] {
+        padding: 0 0.4rem !important;
+    }
+    
+    /* Checkbox styling */
+    .stCheckbox label span {
+        color: #ffffff !important;
+    }
+    
+    /* Success/Error messages */
+    .stSuccess {
+        background-color: #1b4332 !important;
+        color: #a7f3d0 !important;
+        padding: 0.8rem 1rem !important;
+        border-radius: 8px !important;
+        border-left: 4px solid #4CAF50 !important;
+    }
+    
+    .stError {
+        background-color: #4a1515 !important;
+        color: #fca5a5 !important;
+        padding: 0.8rem 1rem !important;
+        border-radius: 8px !important;
+        border-left: 4px solid #ef4444 !important;
+    }
+    
+    /* Download button */
+    .stDownloadButton button {
+        width: 100% !important;
+        background-color: #2d2d3d !important;
+        color: #ffffff !important;
+    }
+    
+    /* Date input - HIGH CONTRAST */
+    .stDateInput input {
+        background-color: #2d2d3d !important;
+        color: #ffffff !important;
+        border: 1px solid #4a4a6a !important;
+    }
+    
+    /* Time input - HIGH CONTRAST */
+    .stTimeInput input {
+        background-color: #2d2d3d !important;
+        color: #ffffff !important;
+        border: 1px solid #4a4a6a !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -103,29 +322,34 @@ def main():
     tab1, tab2, tab3 = st.tabs(["🦵 Leg Builder", "📈 Results", "📋 Trade Log"])
     
     with tab1:
-        st.markdown("## Build Your Strategy")
+        # Compact header with inline buttons
+        col1, col2, col3 = st.columns([4, 1, 1])
+        with col1:
+            st.markdown("### Build Your Strategy")
+        with col2:
+            if st.button("➕ Add", key="add_leg"):
+                if 'num_legs' not in st.session_state:
+                    st.session_state.num_legs = 2
+                st.session_state.num_legs += 1
+        with col3:
+            if st.button("➖ Remove", key="remove_leg"):
+                if 'num_legs' not in st.session_state:
+                    st.session_state.num_legs = 2
+                if st.session_state.num_legs > 1:
+                    st.session_state.num_legs -= 1
         
         # Number of legs
         if 'num_legs' not in st.session_state:
             st.session_state.num_legs = 2
         
-        col1, col2 = st.columns([3, 1])
-        with col2:
-            if st.button("➕ Add Leg"):
-                st.session_state.num_legs += 1
-            if st.button("➖ Remove Leg") and st.session_state.num_legs > 1:
-                st.session_state.num_legs -= 1
-        
-        # Render leg builders
+        # Render leg builders in compact cards
         leg_configs = []
         for i in range(st.session_state.num_legs):
-            with st.container():
-                config = render_leg_builder(i + 1)
-                leg_configs.append(config)
-                st.divider()
+            config = render_leg_builder(i + 1)
+            leg_configs.append(config)
         
         # Run backtest button
-        st.markdown("---")
+        st.markdown("")  # Small spacer
         if st.button("🚀 Run Backtest", type="primary", use_container_width=True):
             try:
                 # Create strategy
@@ -145,8 +369,8 @@ def main():
                 for config in leg_configs:
                     strategy.add_leg(config)
                 
-                # Run backtest with progress
-                engine = BacktestEngine(loader)
+                # Run backtest with optimized engine
+                engine = OptimizedBacktestEngine(loader)
                 
                 # Progress tracking
                 import time as time_module

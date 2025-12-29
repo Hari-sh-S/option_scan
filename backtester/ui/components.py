@@ -66,7 +66,7 @@ def render_metrics_dashboard(metrics: BacktestMetrics):
 
 def render_leg_builder(leg_id: int, key_prefix: str = "") -> Optional[LegConfig]:
     """
-    Render a single leg configuration UI
+    Render a single leg configuration UI - Compact design
     
     Args:
         leg_id: Unique leg identifier
@@ -75,9 +75,19 @@ def render_leg_builder(leg_id: int, key_prefix: str = "") -> Optional[LegConfig]
     Returns:
         LegConfig if valid, None otherwise
     """
-    st.markdown(f"### Leg {leg_id}")
+    # Compact header with colored badge
+    st.markdown(f"""
+        <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+            <span style="background: linear-gradient(135deg, #00C853 0%, #00E676 100%); 
+                         color: white; padding: 0.2rem 0.6rem; border-radius: 4px; 
+                         font-size: 0.85rem; font-weight: 600; margin-right: 0.5rem;">
+                Leg {leg_id}
+            </span>
+        </div>
+    """, unsafe_allow_html=True)
     
-    col1, col2, col3 = st.columns(3)
+    # Main settings in 5 columns for compact layout
+    col1, col2, col3, col4, col5 = st.columns([1, 1, 1.2, 1, 0.8])
     
     with col1:
         action = st.selectbox(
@@ -85,116 +95,118 @@ def render_leg_builder(leg_id: int, key_prefix: str = "") -> Optional[LegConfig]
             ["SELL", "BUY"],
             key=f"{key_prefix}action_{leg_id}"
         )
-        
+    
+    with col2:
         option_type = st.selectbox(
-            "Option Type",
+            "Type",
             ["CE", "PE"],
             key=f"{key_prefix}opt_type_{leg_id}"
         )
     
-    with col2:
+    with col3:
         strike = st.selectbox(
             "Strike",
             ["ATM"] + [f"ATM+{i}" for i in range(1, 11)] + [f"ATM-{i}" for i in range(1, 11)],
             key=f"{key_prefix}strike_{leg_id}"
         )
-        
+    
+    with col4:
         expiry_type = st.selectbox(
             "Expiry",
             ["WEEK", "MONTH"],
             key=f"{key_prefix}expiry_{leg_id}"
         )
     
-    with col3:
+    with col5:
         lots = st.number_input(
             "Lots",
             min_value=1,
             value=1,
             key=f"{key_prefix}lots_{leg_id}"
         )
-    
-    # Exit parameters
-    st.markdown("**Exit Parameters**")
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        sl_type = st.radio(
-            "SL Type",
-            ["Points", "Percent", "None"],
-            key=f"{key_prefix}sl_type_{leg_id}",
-            horizontal=True
-        )
+    # Exit parameters in collapsible expander for compact view
+    with st.expander(f"⚙️ Exit Settings (SL/Target)", expanded=True):
+        col1, col2, col3, col4 = st.columns(4)
         
-        sl_points = None
-        sl_percent = None
+        with col1:
+            sl_type = st.selectbox(
+                "SL Type",
+                ["Points", "Percent", "None"],
+                key=f"{key_prefix}sl_type_{leg_id}"
+            )
+            
+            sl_points = None
+            sl_percent = None
+            
+            if sl_type == "Points":
+                sl_points = st.number_input(
+                    "SL Pts",
+                    min_value=0.0,
+                    value=30.0,
+                    step=5.0,
+                    key=f"{key_prefix}sl_points_{leg_id}"
+                )
+            elif sl_type == "Percent":
+                sl_percent = st.number_input(
+                    "SL %",
+                    min_value=0.0,
+                    value=30.0,
+                    step=5.0,
+                    key=f"{key_prefix}sl_pct_{leg_id}"
+                )
         
-        if sl_type == "Points":
-            sl_points = st.number_input(
-                "SL Points",
-                min_value=0.0,
-                value=30.0,
-                step=5.0,
-                key=f"{key_prefix}sl_points_{leg_id}"
+        with col2:
+            target_type = st.selectbox(
+                "Target Type",
+                ["Points", "Percent", "None"],
+                key=f"{key_prefix}target_type_{leg_id}"
             )
-        elif sl_type == "Percent":
-            sl_percent = st.number_input(
-                "SL %",
-                min_value=0.0,
-                value=30.0,
-                step=5.0,
-                key=f"{key_prefix}sl_pct_{leg_id}"
-            )
-    
-    with col2:
-        target_type = st.radio(
-            "Target Type",
-            ["Points", "Percent", "None"],
-            key=f"{key_prefix}target_type_{leg_id}",
-            horizontal=True
-        )
+            
+            target_points = None
+            target_percent = None
+            
+            if target_type == "Points":
+                target_points = st.number_input(
+                    "Target Pts",
+                    min_value=0.0,
+                    value=50.0,
+                    step=5.0,
+                    key=f"{key_prefix}target_points_{leg_id}"
+                )
+            elif target_type == "Percent":
+                target_percent = st.number_input(
+                    "Target %",
+                    min_value=0.0,
+                    value=50.0,
+                    step=5.0,
+                    key=f"{key_prefix}target_pct_{leg_id}"
+                )
         
-        target_points = None
-        target_percent = None
+        with col3:
+            trailing_sl = st.checkbox(
+                "Trail SL",
+                key=f"{key_prefix}trail_{leg_id}"
+            )
+            
+            trail_activate = None
+            trail_lock = None
+            
+            if trailing_sl:
+                trail_activate = st.number_input(
+                    "Activate",
+                    min_value=0.0,
+                    value=30.0,
+                    key=f"{key_prefix}trail_act_{leg_id}"
+                )
         
-        if target_type == "Points":
-            target_points = st.number_input(
-                "Target Points",
-                min_value=0.0,
-                value=50.0,
-                step=5.0,
-                key=f"{key_prefix}target_points_{leg_id}"
-            )
-        elif target_type == "Percent":
-            target_percent = st.number_input(
-                "Target %",
-                min_value=0.0,
-                value=50.0,
-                step=5.0,
-                key=f"{key_prefix}target_pct_{leg_id}"
-            )
-    
-    with col3:
-        trailing_sl = st.checkbox(
-            "Trailing SL",
-            key=f"{key_prefix}trail_{leg_id}"
-        )
-        
-        trail_activate = None
-        trail_lock = None
-        
-        if trailing_sl:
-            trail_activate = st.number_input(
-                "Activate At (pts)",
-                min_value=0.0,
-                value=30.0,
-                key=f"{key_prefix}trail_act_{leg_id}"
-            )
-            trail_lock = st.number_input(
-                "Lock Profit (pts)",
-                min_value=0.0,
-                value=20.0,
-                key=f"{key_prefix}trail_lock_{leg_id}"
-            )
+        with col4:
+            if trailing_sl:
+                trail_lock = st.number_input(
+                    "Lock Pts",
+                    min_value=0.0,
+                    value=20.0,
+                    key=f"{key_prefix}trail_lock_{leg_id}"
+                )
     
     return LegConfig(
         leg_id=leg_id,
@@ -216,16 +228,19 @@ def render_leg_builder(leg_id: int, key_prefix: str = "") -> Optional[LegConfig]
 def render_strategy_settings() -> Dict[str, Any]:
     """Render strategy configuration UI"""
     
-    st.markdown("### ⚙️ Strategy Settings")
+    # Strategy mode - full width for better visibility
+    mode = st.selectbox(
+        "Strategy Mode",
+        ["INTRADAY", "BTST", "POSITIONAL"],
+        key="strategy_mode"
+    )
     
+    st.markdown("---")
+    
+    # Time settings in columns
     col1, col2 = st.columns(2)
     
     with col1:
-        mode = st.selectbox(
-            "Strategy Mode",
-            ["INTRADAY", "BTST", "POSITIONAL"]
-        )
-        
         entry_time = st.time_input(
             "Entry Time",
             value=pd.to_datetime("09:20").time()
@@ -241,22 +256,25 @@ def render_strategy_settings() -> Dict[str, Any]:
             "No Entry After",
             value=pd.to_datetime("14:30").time()
         )
-        
-        max_loss = st.number_input(
-            "Max Loss (₹)",
-            min_value=0,
-            value=0,
-            step=1000,
-            help="0 = No limit"
-        )
-        
-        max_profit = st.number_input(
-            "Max Profit (₹)",
-            min_value=0,
-            value=0,
-            step=1000,
-            help="0 = No limit"
-        )
+    
+    st.markdown("---")
+    
+    # P&L limits - full width
+    max_loss = st.number_input(
+        "Max Loss (₹)",
+        min_value=0,
+        value=0,
+        step=1000,
+        help="0 = No limit"
+    )
+    
+    max_profit = st.number_input(
+        "Max Profit (₹)",
+        min_value=0,
+        value=0,
+        step=1000,
+        help="0 = No limit"
+    )
     
     return {
         "mode": mode,
