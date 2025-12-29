@@ -126,87 +126,176 @@ def render_leg_builder(leg_id: int, key_prefix: str = "") -> Optional[LegConfig]
         )
     # Exit parameters in collapsible expander for compact view
     with st.expander(f"⚙️ Exit Settings (SL/Target)", expanded=True):
-        col1, col2, col3, col4 = st.columns(4)
+        # Initialize all variables
+        sl_points = None
+        sl_percent = None
+        sl_underlying_points = None
+        sl_underlying_percent = None
+        target_points = None
+        target_percent = None
+        target_underlying_points = None
+        target_underlying_percent = None
+        trailing_sl = False
+        trail_type = "points"
+        trail_activate_points = None
+        trail_activate_percent = None
+        trail_lock_points = None
+        trail_lock_percent = None
+        
+        # Row 1: SL and Target settings
+        col1, col2 = st.columns(2)
         
         with col1:
+            st.markdown("**Stop Loss**")
             sl_type = st.selectbox(
                 "SL Type",
-                ["Points", "Percent", "None"],
+                ["None", "Points (Pts)", "Percent (%)", "Underlying Pts", "Underlying %"],
                 key=f"{key_prefix}sl_type_{leg_id}"
             )
             
-            sl_points = None
-            sl_percent = None
-            
-            if sl_type == "Points":
+            if sl_type == "Points (Pts)":
                 sl_points = st.number_input(
-                    "SL Pts",
+                    "SL Points",
                     min_value=0.0,
                     value=30.0,
                     step=5.0,
-                    key=f"{key_prefix}sl_points_{leg_id}"
+                    key=f"{key_prefix}sl_points_{leg_id}",
+                    help="Stop loss in absolute points on option premium"
                 )
-            elif sl_type == "Percent":
+            elif sl_type == "Percent (%)":
                 sl_percent = st.number_input(
                     "SL %",
                     min_value=0.0,
                     value=30.0,
                     step=5.0,
-                    key=f"{key_prefix}sl_pct_{leg_id}"
+                    key=f"{key_prefix}sl_pct_{leg_id}",
+                    help="Stop loss as % of option premium"
+                )
+            elif sl_type == "Underlying Pts":
+                sl_underlying_points = st.number_input(
+                    "Nifty SL Pts",
+                    min_value=0.0,
+                    value=50.0,
+                    step=10.0,
+                    key=f"{key_prefix}sl_und_pts_{leg_id}",
+                    help="Stop loss based on Nifty 50 movement in points"
+                )
+            elif sl_type == "Underlying %":
+                sl_underlying_percent = st.number_input(
+                    "Nifty SL %",
+                    min_value=0.0,
+                    value=1.0,
+                    step=0.5,
+                    key=f"{key_prefix}sl_und_pct_{leg_id}",
+                    help="Stop loss based on Nifty 50 % movement"
                 )
         
         with col2:
+            st.markdown("**Target Profit**")
             target_type = st.selectbox(
                 "Target Type",
-                ["Points", "Percent", "None"],
+                ["None", "Points (Pts)", "Percent (%)", "Underlying Pts", "Underlying %"],
                 key=f"{key_prefix}target_type_{leg_id}"
             )
             
-            target_points = None
-            target_percent = None
-            
-            if target_type == "Points":
+            if target_type == "Points (Pts)":
                 target_points = st.number_input(
-                    "Target Pts",
+                    "Target Points",
                     min_value=0.0,
                     value=50.0,
                     step=5.0,
-                    key=f"{key_prefix}target_points_{leg_id}"
+                    key=f"{key_prefix}target_points_{leg_id}",
+                    help="Target in absolute points on option premium"
                 )
-            elif target_type == "Percent":
+            elif target_type == "Percent (%)":
                 target_percent = st.number_input(
                     "Target %",
                     min_value=0.0,
                     value=50.0,
                     step=5.0,
-                    key=f"{key_prefix}target_pct_{leg_id}"
+                    key=f"{key_prefix}target_pct_{leg_id}",
+                    help="Target as % of option premium"
+                )
+            elif target_type == "Underlying Pts":
+                target_underlying_points = st.number_input(
+                    "Nifty Target Pts",
+                    min_value=0.0,
+                    value=50.0,
+                    step=10.0,
+                    key=f"{key_prefix}target_und_pts_{leg_id}",
+                    help="Target based on Nifty 50 movement in points"
+                )
+            elif target_type == "Underlying %":
+                target_underlying_percent = st.number_input(
+                    "Nifty Target %",
+                    min_value=0.0,
+                    value=1.0,
+                    step=0.5,
+                    key=f"{key_prefix}target_und_pct_{leg_id}",
+                    help="Target based on Nifty 50 % movement"
                 )
         
-        with col3:
+        # Row 2: Trailing SL
+        st.markdown("---")
+        st.markdown("**Trail SL**")
+        col1, col2, col3 = st.columns([1, 1, 1])
+        
+        with col1:
             trailing_sl = st.checkbox(
-                "Trail SL",
-                key=f"{key_prefix}trail_{leg_id}"
+                "Enable Trail SL",
+                key=f"{key_prefix}trail_{leg_id}",
+                help="Move SL in your favor as price moves"
             )
-            
-            trail_activate = None
-            trail_lock = None
-            
-            if trailing_sl:
-                trail_activate = st.number_input(
-                    "Activate",
-                    min_value=0.0,
-                    value=30.0,
-                    key=f"{key_prefix}trail_act_{leg_id}"
-                )
         
-        with col4:
-            if trailing_sl:
-                trail_lock = st.number_input(
-                    "Lock Pts",
-                    min_value=0.0,
-                    value=20.0,
-                    key=f"{key_prefix}trail_lock_{leg_id}"
+        if trailing_sl:
+            with col2:
+                trail_type = st.selectbox(
+                    "Trail Type",
+                    ["Points", "Percentage"],
+                    key=f"{key_prefix}trail_type_{leg_id}"
                 )
+            
+            with col3:
+                if trail_type == "Points":
+                    trail_activate_points = st.number_input(
+                        "Activate (Pts)",
+                        min_value=0.0,
+                        value=30.0,
+                        step=5.0,
+                        key=f"{key_prefix}trail_act_{leg_id}",
+                        help="Profit in points to activate trailing"
+                    )
+                else:
+                    trail_activate_percent = st.number_input(
+                        "Activate (%)",
+                        min_value=0.0,
+                        value=20.0,
+                        step=5.0,
+                        key=f"{key_prefix}trail_act_pct_{leg_id}",
+                        help="Profit % to activate trailing"
+                    )
+            
+            # Second row for lock values
+            col1, col2, col3 = st.columns([1, 1, 1])
+            with col3:
+                if trail_type == "Points":
+                    trail_lock_points = st.number_input(
+                        "Lock (Pts)",
+                        min_value=0.0,
+                        value=20.0,
+                        step=5.0,
+                        key=f"{key_prefix}trail_lock_{leg_id}",
+                        help="Profit in points to lock"
+                    )
+                else:
+                    trail_lock_percent = st.number_input(
+                        "Lock (%)",
+                        min_value=0.0,
+                        value=15.0,
+                        step=5.0,
+                        key=f"{key_prefix}trail_lock_pct_{leg_id}",
+                        help="Profit % to lock"
+                    )
     
     return LegConfig(
         leg_id=leg_id,
@@ -217,11 +306,18 @@ def render_leg_builder(leg_id: int, key_prefix: str = "") -> Optional[LegConfig]
         lots=lots,
         sl_points=sl_points,
         sl_percent=sl_percent,
+        sl_underlying_points=sl_underlying_points,
+        sl_underlying_percent=sl_underlying_percent,
         target_points=target_points,
         target_percent=target_percent,
+        target_underlying_points=target_underlying_points,
+        target_underlying_percent=target_underlying_percent,
         trailing_sl=trailing_sl,
-        trail_activate_points=trail_activate,
-        trail_lock_points=trail_lock
+        trail_type=trail_type.lower() if trailing_sl else "points",
+        trail_activate_points=trail_activate_points,
+        trail_activate_percent=trail_activate_percent,
+        trail_lock_points=trail_lock_points,
+        trail_lock_percent=trail_lock_percent
     )
 
 

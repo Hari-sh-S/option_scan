@@ -36,19 +36,28 @@ class LegConfig:
     action: LegAction        # BUY or SELL
     lots: int = 1
     
-    # Exit parameters (in points)
-    sl_points: Optional[float] = None
-    sl_percent: Optional[float] = None
-    target_points: Optional[float] = None
-    target_percent: Optional[float] = None
+    # Exit parameters - Option premium based
+    sl_points: Optional[float] = None           # SL in absolute points on premium
+    sl_percent: Optional[float] = None          # SL in % of premium
+    target_points: Optional[float] = None       # Target in absolute points on premium
+    target_percent: Optional[float] = None      # Target in % of premium
+    
+    # Exit parameters - Underlying (Nifty 50) based
+    sl_underlying_points: Optional[float] = None       # SL based on Nifty movement in points
+    sl_underlying_percent: Optional[float] = None      # SL based on Nifty % movement
+    target_underlying_points: Optional[float] = None   # Target based on Nifty movement in points
+    target_underlying_percent: Optional[float] = None  # Target based on Nifty % movement
     
     # Trailing SL
     trailing_sl: bool = False
-    trail_activate_points: Optional[float] = None  # Profit to activate trailing
-    trail_lock_points: Optional[float] = None      # Profit to lock
+    trail_type: str = "points"                  # "points" or "percent"
+    trail_activate_points: Optional[float] = None  # Profit to activate trailing (points)
+    trail_activate_percent: Optional[float] = None # Profit to activate trailing (percent)
+    trail_lock_points: Optional[float] = None      # Profit to lock (points)
+    trail_lock_percent: Optional[float] = None     # Profit to lock (percent)
     
     def get_sl_price(self, entry_price: float) -> Optional[float]:
-        """Calculate SL price"""
+        """Calculate SL price based on option premium"""
         if self.sl_points is not None:
             if self.action == LegAction.BUY:
                 return entry_price - self.sl_points
@@ -62,7 +71,7 @@ class LegConfig:
         return None
     
     def get_target_price(self, entry_price: float) -> Optional[float]:
-        """Calculate target price"""
+        """Calculate target price based on option premium"""
         if self.target_points is not None:
             if self.action == LegAction.BUY:
                 return entry_price + self.target_points
@@ -74,6 +83,14 @@ class LegConfig:
             else:
                 return entry_price * (1 - self.target_percent / 100)
         return None
+    
+    def has_underlying_sl(self) -> bool:
+        """Check if SL is based on underlying movement"""
+        return self.sl_underlying_points is not None or self.sl_underlying_percent is not None
+    
+    def has_underlying_target(self) -> bool:
+        """Check if target is based on underlying movement"""
+        return self.target_underlying_points is not None or self.target_underlying_percent is not None
 
 
 @dataclass
