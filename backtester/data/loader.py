@@ -91,13 +91,25 @@ class DataLoader:
         
         Args:
             df: Source dataframe
-            start_time: 'HH:MM'
-            end_time: 'HH:MM'
+            start_time: 'HH:MM' in IST (Indian Standard Time)
+            end_time: 'HH:MM' in IST
+            
+        Note: Historical data is stored in UTC. This method converts
+        IST input times to UTC for proper filtering.
+        IST = UTC + 5:30, so UTC = IST - 5:30
         """
-        start = datetime.strptime(start_time, "%H:%M").time()
-        end = datetime.strptime(end_time, "%H:%M").time()
+        from datetime import timedelta
         
-        mask = (df['time'] >= start) & (df['time'] <= end)
+        # Parse IST times
+        start_ist = datetime.strptime(start_time, "%H:%M")
+        end_ist = datetime.strptime(end_time, "%H:%M")
+        
+        # Convert IST to UTC (subtract 5:30)
+        ist_offset = timedelta(hours=5, minutes=30)
+        start_utc = (start_ist - ist_offset).time()
+        end_utc = (end_ist - ist_offset).time()
+        
+        mask = (df['time'] >= start_utc) & (df['time'] <= end_utc)
         return df[mask].copy()
     
     def get_day_data(self, strike: str, option_type: str, 
