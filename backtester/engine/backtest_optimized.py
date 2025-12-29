@@ -124,6 +124,10 @@ class OptimizedBacktestEngine:
                     date
                 )
                 if not df.empty:
+                    # Convert UTC to IST for simulation
+                    # India does not use DST, so fixed +5:30 offset is correct year-round
+                    df['datetime'] = df['datetime'] + pd.Timedelta(hours=5, minutes=30)
+                    
                     leg_data[leg.config.leg_id] = df
                     # Build datetime -> row dict using vectorized operations (faster than iterrows)
                     # Use zip with datetime column and records for O(1) lookup

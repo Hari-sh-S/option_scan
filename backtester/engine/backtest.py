@@ -176,6 +176,8 @@ class BacktestEngine:
                     date
                 )
                 if not df.empty:
+                    # Convert UTC to IST for simulation
+                    df['datetime'] = df['datetime'] + pd.Timedelta(hours=5, minutes=30)
                     leg_data[leg.config.leg_id] = df
             except Exception as e:
                 print(f"Error loading data for leg {leg.config.leg_id} on {date}: {e}")
