@@ -143,8 +143,13 @@ class BacktestEngine:
                 cumulative_pnl += day_result.net_pnl
                 self.equity_curve.append(cumulative_pnl)
             
-            # Reset strategy for next day
-            strategy.reset_for_new_day()
+            # Reset strategy for next day based on mode
+            if strategy.config.mode == StrategyMode.INTRADAY:
+                # Intraday: Full reset - new legs each day
+                strategy.reset_for_new_day()
+            else:
+                # BTST/Positional: Keep active legs, only reset daily flags
+                strategy.reset_daily_flags()
         
         # Calculate totals
         total_pnl = sum(d.gross_pnl for d in self.daily_results)
@@ -214,9 +219,17 @@ class BacktestEngine:
             if strategy.should_enter(current_time) and not strategy.entered_today:
                 strategy.enter_all_legs(candle_data, timestamp, slippage_pct)
             
-            # 2. Skip if not entered
-            if not strategy.entered_today or not strategy.get_active_legs():
-                continue
+            # 2. Skip if no active positions
+            # For BTST/Positional, we may have active legs from previous day
+            has_active_positions = strategy.get_active_legs()
+            if strategy.config.mode == StrategyMode.INTRADAY:
+                # Intraday: Need entry today AND active legs
+                if not strategy.entered_today or not has_active_positions:
+                    continue
+            else:
+                # BTST/Positional: Just need active legs (may be from previous day)
+                if not has_active_positions and not strategy.entered_today:
+                    continue
             
             # 3. Check strategy-level exits (highest priority)
             if strategy.check_strategy_sl():

@@ -108,8 +108,10 @@ class Strategy:
     
     def should_exit_time(self, current_time: time) -> bool:
         """Check if time-based exit should trigger"""
-        if self.config.mode != StrategyMode.INTRADAY:
+        # Positional doesn't use time-based exit
+        if self.config.mode == StrategyMode.POSITIONAL:
             return False
+        # Intraday and BTST both exit at exit_time
         return current_time >= self.config.get_exit_time()
     
     def check_strategy_sl(self) -> bool:
@@ -212,6 +214,15 @@ class Strategy:
             )
             new_legs.append(new_leg)
         self.legs = new_legs
+    
+    def reset_daily_flags(self):
+        """
+        Reset only daily flags without resetting legs.
+        Used for BTST/Positional modes where positions carry over.
+        """
+        self.entered_today = False
+        self.exited_today = False
+        self.day_pnl = 0.0
     
     def can_reenter_sl(self) -> bool:
         """Check if re-entry on SL is allowed"""
