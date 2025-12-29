@@ -111,7 +111,15 @@ class Strategy:
         # Positional doesn't use time-based exit
         if self.config.mode == StrategyMode.POSITIONAL:
             return False
-        # Intraday and BTST both exit at exit_time
+        # BTST: Only exit at exit_time if positions were from a PREVIOUS day
+        # (i.e., don't exit same day as entry)
+        if self.config.mode == StrategyMode.BTST:
+            # If we entered today, skip exit - wait for next day
+            if self.entered_today:
+                return False
+            # Positions from previous day - check exit time
+            return current_time >= self.config.get_exit_time()
+        # Intraday: exit at exit_time same day
         return current_time >= self.config.get_exit_time()
     
     def check_strategy_sl(self) -> bool:
