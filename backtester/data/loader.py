@@ -22,7 +22,7 @@ class DataLoader:
     
     # Hugging Face dataset configuration
     # UPDATE THIS with your actual dataset name after uploading
-    HF_DATASET_REPO = "Hari-sh-S/nifty-options-data"  # Change to your repo
+    HF_DATASET_REPO = "artist-23/nifty-options-data"  # Hugging Face dataset
     
     def __init__(self, data_dir: Path = None):
         # Use local cache directory
