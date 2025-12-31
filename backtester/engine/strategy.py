@@ -232,10 +232,29 @@ class Strategy:
         """
         Reset only daily flags without resetting legs.
         Used for BTST/Positional modes where positions carry over.
+        For BTST: If all legs are exited, reset them to CREATED for next trade.
         """
         self.entered_today = False
         self.exited_today = False
         self.day_pnl = 0.0
+        
+        # For BTST: If all legs have exited, reset them to CREATED for re-entry
+        # This allows multiple BTST trades over the date range
+        if self.config.mode == StrategyMode.BTST:
+            all_exited = all(leg.state == LegState.EXITED for leg in self.legs)
+            if all_exited and self.legs:
+                self._reset_legs_to_created()
+    
+    def _reset_legs_to_created(self):
+        """Reset all legs to CREATED state for re-entry"""
+        new_legs = []
+        for leg in self.legs:
+            new_leg = Leg(
+                config=leg.config,
+                lot_size=leg.lot_size
+            )
+            new_legs.append(new_leg)
+        self.legs = new_legs
     
     def can_reenter_sl(self) -> bool:
         """Check if re-entry on SL is allowed"""
