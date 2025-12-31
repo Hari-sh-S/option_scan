@@ -200,6 +200,12 @@ class OptimizedBacktestEngine:
             if strategy.should_exit_time(current_time):
                 strategy.exit_all_legs(candle_data, timestamp, "TIME_EXIT", slippage_pct)
                 day_trades.extend(self._create_trades(strategy.legs, date, brokerage_per_lot))
+                
+                # For BTST: Reset legs and continue loop for same-day re-entry
+                # This enables: Entry Day 1, Exit Day 2, Entry Day 2, Exit Day 3, etc.
+                if strategy.config.mode == StrategyMode.BTST:
+                    strategy._reset_legs_to_created()
+                    continue  # Don't break - allow re-entry same day
                 break
             
             # 5. Update legs and check individual exits
