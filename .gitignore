@@ -15,8 +15,10 @@ venv/
 *.log
 logs/
 
-# Data files (except parquet which goes to LFS)
-*.csv
+# Data files - hosted on Hugging Face
+historical_data/
+historical_data_backup/
+*.parquet
 
 # IDE
 .vscode/

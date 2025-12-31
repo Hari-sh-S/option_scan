@@ -1,25 +1,84 @@
 """
-Data Loader - Parquet reader with caching and slicing
+Data Loader - Downloads data from Hugging Face and provides cached access
 """
 
 import pandas as pd
 from pathlib import Path
 from typing import Dict, List, Optional
 from datetime import datetime, time
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from config import DATA_DIR
+import os
+
+# Try to import huggingface_hub, install if not present
+try:
+    from huggingface_hub import hf_hub_download, snapshot_download
+except ImportError:
+    import subprocess
+    subprocess.check_call(['pip', 'install', 'huggingface_hub'])
+    from huggingface_hub import hf_hub_download, snapshot_download
 
 
 class DataLoader:
-    """Cached parquet reader with date/time slicing"""
+    """Cached parquet reader with Hugging Face download support"""
+    
+    # Hugging Face dataset configuration
+    # UPDATE THIS with your actual dataset name after uploading
+    HF_DATASET_REPO = "Hari-sh-S/nifty-options-data"  # Change to your repo
     
     def __init__(self, data_dir: Path = None):
-        self.data_dir = data_dir or DATA_DIR
+        # Use local cache directory
+        if data_dir is None:
+            # Check if we're on Streamlit Cloud (no historical_data folder)
+            local_data = Path(__file__).parent.parent.parent / "historical_data" / "NIFTY"
+            if local_data.exists() and any(local_data.glob("**/*.parquet")):
+                # Local data exists, use it
+                self.data_dir = local_data
+                self.use_hf = False
+            else:
+                # No local data, use Hugging Face
+                self.data_dir = Path.home() / ".cache" / "nifty_options_data" / "NIFTY"
+                self.use_hf = True
+        else:
+            self.data_dir = data_dir / "NIFTY" if "NIFTY" not in str(data_dir) else data_dir
+            self.use_hf = not self.data_dir.exists()
+        
         self._cache: Dict[str, pd.DataFrame] = {}
+        self._hf_downloaded = False
+    
+    def _ensure_data_downloaded(self):
+        """Download data from Hugging Face if needed"""
+        if not self.use_hf or self._hf_downloaded:
+            return
+        
+        # Check if already cached
+        week_dir = self.data_dir / "WEEK"
+        if week_dir.exists() and any(week_dir.glob("*.parquet")):
+            self._hf_downloaded = True
+            return
+        
+        print(f"Downloading data from Hugging Face: {self.HF_DATASET_REPO}")
+        print("This may take a few minutes on first run...")
+        
+        try:
+            # Download entire dataset
+            cache_dir = self.data_dir.parent
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            
+            snapshot_download(
+                repo_id=self.HF_DATASET_REPO,
+                repo_type="dataset",
+                local_dir=cache_dir,
+                local_dir_use_symlinks=False
+            )
+            print("Download complete!")
+            self._hf_downloaded = True
+        except Exception as e:
+            print(f"Error downloading from Hugging Face: {e}")
+            print("Please ensure the dataset exists and is accessible.")
+            raise
     
     def _get_file_path(self, strike: str, option_type: str, expiry_type: str) -> Path:
         """Get parquet file path for given parameters"""
+        self._ensure_data_downloaded()
         filename = f"{strike}_{option_type}.parquet"
         return self.data_dir / expiry_type / filename
     
