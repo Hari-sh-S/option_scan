@@ -63,13 +63,29 @@ class DataLoader:
             cache_dir = self.data_dir.parent
             cache_dir.mkdir(parents=True, exist_ok=True)
             
+            print(f"Downloading to: {cache_dir}")
+            
             snapshot_download(
                 repo_id=self.HF_DATASET_REPO,
                 repo_type="dataset",
                 local_dir=cache_dir,
                 local_dir_use_symlinks=False
             )
-            print("Download complete!")
+            
+            # Verify download
+            week_dir = self.data_dir / "WEEK"
+            month_dir = self.data_dir / "MONTH"
+            
+            if week_dir.exists():
+                week_files = list(week_dir.glob("*.parquet"))
+                print(f"Download complete! Found {len(week_files)} WEEK files")
+            else:
+                print(f"WARNING: WEEK directory not found at {week_dir}")
+                # Try to find where files actually are
+                for p in cache_dir.rglob("*.parquet"):
+                    print(f"  Found parquet: {p}")
+                    break  # Just show first one
+            
             self._hf_downloaded = True
         except Exception as e:
             print(f"Error downloading from Hugging Face: {e}")
