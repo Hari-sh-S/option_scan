@@ -58,6 +58,9 @@ class Strategy:
     config: StrategyConfig
     legs: List[Leg] = field(default_factory=list)
     
+    # For BTST: Yesterday's legs that need to exit today
+    pending_exit_legs: List[Leg] = field(default_factory=list)
+    
     # State
     is_active: bool = True
     entered_today: bool = False
@@ -111,14 +114,12 @@ class Strategy:
         # Positional doesn't use time-based exit
         if self.config.mode == StrategyMode.POSITIONAL:
             return False
-        # BTST: Only exit at exit_time if positions were from a PREVIOUS day
-        # (i.e., don't exit same day as entry)
+        # BTST: Check if we have pending_exit_legs that need to exit
         if self.config.mode == StrategyMode.BTST:
-            # If we entered today, skip exit - wait for next day
-            if self.entered_today:
-                return False
-            # Positions from previous day - check exit time
-            return current_time >= self.config.get_exit_time()
+            # Only return True if we have pending exit legs AND it's exit time
+            if self.pending_exit_legs:
+                return current_time >= self.config.get_exit_time()
+            return False
         # Intraday: exit at exit_time same day
         return current_time >= self.config.get_exit_time()
     
@@ -232,18 +233,59 @@ class Strategy:
         """
         Reset only daily flags without resetting legs.
         Used for BTST/Positional modes where positions carry over.
-        For BTST: If all legs are exited, reset them to CREATED for next trade.
+        
+        For BTST: Move active legs to pending_exit_legs, create fresh legs for new entry.
+        This enables overlapping trades: Entry Day N while Exit of Day N-1.
         """
         self.entered_today = False
         self.exited_today = False
         self.day_pnl = 0.0
         
-        # For BTST: If all legs have exited, reset them to CREATED for re-entry
-        # This allows multiple BTST trades over the date range
         if self.config.mode == StrategyMode.BTST:
-            all_exited = all(leg.state == LegState.EXITED for leg in self.legs)
-            if all_exited and self.legs:
+            # Move active legs to pending exit (will exit at exit_time today)
+            active_legs = [leg for leg in self.legs if leg.state == LegState.ACTIVE]
+            if active_legs:
+                self.pending_exit_legs = active_legs
+                # Create fresh legs for today's entry
                 self._reset_legs_to_created()
+            else:
+                # No active legs, but check if there are exited legs to clear
+                if all(leg.state == LegState.EXITED for leg in self.legs) and self.legs:
+                    self._reset_legs_to_created()
+    
+    def prepare_btst_day(self):
+        """Prepare for BTST trading day - called at start of each day"""
+        if self.config.mode != StrategyMode.BTST:
+            return
+        
+        # If we have active legs from yesterday, move them to pending exit
+        active_legs = [leg for leg in self.legs if leg.state == LegState.ACTIVE]
+        if active_legs:
+            self.pending_exit_legs = list(active_legs)  # Copy reference
+            # Create fresh legs for today's entry
+            self._reset_legs_to_created()
+    
+    def has_pending_exit(self) -> bool:
+        """Check if there are legs pending exit from previous day"""
+        return bool(self.pending_exit_legs)
+    
+    def exit_pending_legs(self, candle_data, timestamp, reason, slippage_pct=0.0):
+        """Exit pending legs from previous day"""
+        for leg in self.pending_exit_legs:
+            if leg.state == LegState.ACTIVE:
+                candle = candle_data.get(leg.config.leg_id)
+                if candle is not None:
+                    exit_price = candle['close']
+                    leg.exit(exit_price, timestamp, reason, slippage_pct)
+        self.exited_today = True
+    
+    def get_pending_exit_legs(self) -> List[Leg]:
+        """Get legs pending exit"""
+        return self.pending_exit_legs
+    
+    def clear_pending_exit(self):
+        """Clear pending exit legs after trades created"""
+        self.pending_exit_legs = []
     
     def _reset_legs_to_created(self):
         """Reset all legs to CREATED state for re-entry"""

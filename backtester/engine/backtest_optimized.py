@@ -169,52 +169,63 @@ class OptimizedBacktestEngine:
             if not candle_data:
                 continue
             
-            # 1. Check entry
+            # 1. Check entry for today's NEW position
             if strategy.should_enter(current_time) and not strategy.entered_today:
                 strategy.enter_all_legs(candle_data, timestamp, slippage_pct)
             
-            # 2. Skip if no active positions
-            # For BTST/Positional, we may have active legs from previous day
+            # 2. For BTST: Check exit for YESTERDAY's position (pending_exit_legs)
+            if strategy.config.mode == StrategyMode.BTST and strategy.has_pending_exit():
+                if strategy.should_exit_time(current_time):
+                    strategy.exit_pending_legs(candle_data, timestamp, "TIME_EXIT", slippage_pct)
+                    day_trades.extend(self._create_trades(strategy.get_pending_exit_legs(), date, brokerage_per_lot))
+                    strategy.clear_pending_exit()
+            
+            # 3. Skip if no active positions AND no pending exits
             has_active_positions = strategy.get_active_legs()
+            has_pending = strategy.has_pending_exit()
+            
             if strategy.config.mode == StrategyMode.INTRADAY:
                 # Intraday: Need entry today AND active legs
                 if not strategy.entered_today or not has_active_positions:
                     continue
+            elif strategy.config.mode == StrategyMode.BTST:
+                # BTST: Need active legs OR pending exit legs
+                if not has_active_positions and not has_pending and not strategy.entered_today:
+                    continue
             else:
-                # BTST/Positional: Just need active legs (may be from previous day)
+                # Positional: Just need active legs
                 if not has_active_positions and not strategy.entered_today:
                     continue
             
-            # 3. Check strategy-level exits (highest priority)
-            if strategy.check_strategy_sl():
-                strategy.exit_all_legs(candle_data, timestamp, "STRATEGY_SL", slippage_pct)
-                day_trades.extend(self._create_trades(strategy.legs, date, brokerage_per_lot))
-                break
-            
-            if strategy.check_strategy_target():
-                strategy.exit_all_legs(candle_data, timestamp, "STRATEGY_TARGET", slippage_pct)
-                day_trades.extend(self._create_trades(strategy.legs, date, brokerage_per_lot))
-                break
-            
-            # 4. Check time-based exit
-            if strategy.should_exit_time(current_time):
-                strategy.exit_all_legs(candle_data, timestamp, "TIME_EXIT", slippage_pct)
-                day_trades.extend(self._create_trades(strategy.legs, date, brokerage_per_lot))
+            # 4. Check strategy-level exits (for today's active legs only)
+            if has_active_positions:
+                if strategy.check_strategy_sl():
+                    strategy.exit_all_legs(candle_data, timestamp, "STRATEGY_SL", slippage_pct)
+                    day_trades.extend(self._create_trades(strategy.legs, date, brokerage_per_lot))
+                    if strategy.config.mode == StrategyMode.INTRADAY:
+                        break
+                    continue
                 
-                # For BTST: Reset legs and continue loop for same-day re-entry
-                # This enables: Entry Day 1, Exit Day 2, Entry Day 2, Exit Day 3, etc.
-                if strategy.config.mode == StrategyMode.BTST:
-                    strategy._reset_legs_to_created()
-                    continue  # Don't break - allow re-entry same day
-                break
-            
-            # 5. Update legs and check individual exits
-            exits = strategy.update_legs(candle_data, timestamp, slippage_pct)
-            
-            # If all legs exited, we're done for the day (for intraday)
-            if not strategy.get_active_legs() and strategy.config.mode == StrategyMode.INTRADAY:
-                day_trades.extend(self._create_trades(strategy.legs, date, brokerage_per_lot))
-                break
+                if strategy.check_strategy_target():
+                    strategy.exit_all_legs(candle_data, timestamp, "STRATEGY_TARGET", slippage_pct)
+                    day_trades.extend(self._create_trades(strategy.legs, date, brokerage_per_lot))
+                    if strategy.config.mode == StrategyMode.INTRADAY:
+                        break
+                    continue
+                
+                # 5. Check time-based exit (for Intraday only - BTST exits pending legs above)
+                if strategy.config.mode == StrategyMode.INTRADAY and strategy.should_exit_time(current_time):
+                    strategy.exit_all_legs(candle_data, timestamp, "TIME_EXIT", slippage_pct)
+                    day_trades.extend(self._create_trades(strategy.legs, date, brokerage_per_lot))
+                    break
+                
+                # 6. Update legs and check individual exits
+                exits = strategy.update_legs(candle_data, timestamp, slippage_pct)
+                
+                # If all legs exited, we're done for the day (for intraday)
+                if not strategy.get_active_legs() and strategy.config.mode == StrategyMode.INTRADAY:
+                    day_trades.extend(self._create_trades(strategy.legs, date, brokerage_per_lot))
+                    break
         
         # Force exit any remaining positions at end of day (for intraday)
         if strategy.get_active_legs() and strategy.config.mode == StrategyMode.INTRADAY:
