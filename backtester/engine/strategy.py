@@ -144,14 +144,19 @@ class Strategy:
             timestamp: Entry time
             slippage_pct: Slippage percentage
         """
+        legs_entered = 0
         for leg in self.legs:
             if leg.state == LegState.CREATED:
                 candle = candle_data.get(leg.config.leg_id)
                 if candle is not None:
                     entry_price = candle['close']  # Enter at close of entry candle
                     leg.enter(entry_price, timestamp, slippage_pct)
+                    legs_entered += 1
         
-        self.entered_today = True
+        # Only mark as entered if at least one leg actually entered
+        # This is important for BTST where legs may already be active from previous day
+        if legs_entered > 0:
+            self.entered_today = True
     
     def exit_all_legs(self, candle_data: Dict[str, pd.Series],
                       timestamp: datetime, reason: str,
