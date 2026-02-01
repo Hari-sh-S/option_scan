@@ -263,9 +263,14 @@ class OptimizedBacktestEngine:
                 # Brokerage for entry + exit
                 brokerage = brokerage_per_lot * leg.config.lots * 2
                 
+                # Generate instrument name (e.g., "NIFTY ATM CE" or "NIFTY ATM+1 PE")
+                expiry = leg.config.expiry_type  # WEEK or MONTH
+                instrument = f"NIFTY {leg.config.strike} {leg.config.option_type} ({expiry})"
+                
                 trade = Trade(
                     date=date,
                     leg_id=leg.config.leg_id,
+                    instrument=instrument,
                     strike=leg.config.strike,
                     option_type=leg.config.option_type,
                     action=leg.config.action.value,

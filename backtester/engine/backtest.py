@@ -21,6 +21,7 @@ class Trade:
     """Record of a single trade"""
     date: str
     leg_id: int
+    instrument: str  # e.g. "NIFTY ATM CE" or "NIFTY ATM+1 PE"
     strike: str
     option_type: str
     action: str
