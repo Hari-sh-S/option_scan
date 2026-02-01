@@ -153,7 +153,7 @@ class Strategy:
                     entry_price = candle['close']  # Enter at close of entry candle
                     # Get actual strike price from candle data if available
                     actual_strike = None
-                    if 'strike_price' in candle.index:
+                    if 'strike_price' in candle:
                         actual_strike = int(candle['strike_price'])
                     leg.enter(entry_price, timestamp, slippage_pct, actual_strike)
                     legs_entered += 1
