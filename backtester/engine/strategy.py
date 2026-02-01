@@ -151,7 +151,11 @@ class Strategy:
                 candle = candle_data.get(leg.config.leg_id)
                 if candle is not None:
                     entry_price = candle['close']  # Enter at close of entry candle
-                    leg.enter(entry_price, timestamp, slippage_pct)
+                    # Get actual strike price from candle data if available
+                    actual_strike = None
+                    if 'strike_price' in candle.index:
+                        actual_strike = int(candle['strike_price'])
+                    leg.enter(entry_price, timestamp, slippage_pct, actual_strike)
                     legs_entered += 1
         
         # Only mark as entered if at least one leg actually entered

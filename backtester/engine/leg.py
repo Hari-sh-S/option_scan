@@ -105,9 +105,10 @@ class Leg:
     # State
     state: LegState = field(default=LegState.CREATED)
     
-    # Entry details
+    # Entry details  
     entry_price: Optional[float] = None
     entry_time: Optional[datetime] = None
+    actual_strike_price: Optional[int] = None  # Actual strike (e.g., 13000) resolved at entry
     
     # Exit details
     exit_price: Optional[float] = None
@@ -119,7 +120,8 @@ class Leg:
     current_sl: Optional[float] = None
     peak_profit: float = 0.0  # For trailing SL
     
-    def enter(self, price: float, timestamp: datetime, slippage_pct: float = 0.0):
+    def enter(self, price: float, timestamp: datetime, slippage_pct: float = 0.0,
+              actual_strike_price: int = None):
         """
         Enter the position
         
@@ -127,6 +129,7 @@ class Leg:
             price: Entry price
             timestamp: Entry time
             slippage_pct: Slippage percentage to apply
+            actual_strike_price: The resolved strike price (e.g., 13000)
         """
         if self.state != LegState.CREATED:
             raise ValueError(f"Cannot enter leg in state {self.state}")
@@ -138,6 +141,7 @@ class Leg:
             self.entry_price = price * (1 - slippage_pct / 100)
         
         self.entry_time = timestamp
+        self.actual_strike_price = actual_strike_price
         self.state = LegState.ACTIVE
         
         # Set initial SL
