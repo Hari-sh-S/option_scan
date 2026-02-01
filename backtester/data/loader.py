@@ -124,6 +124,10 @@ class DataLoader:
             if not pd.api.types.is_datetime64_any_dtype(df['datetime']):
                 df['datetime'] = pd.to_datetime(df['datetime'])
             
+            # CRITICAL: Convert UTC to IST (Dhan API provides data in UTC)
+            # IST = UTC + 5:30
+            df['datetime'] = df['datetime'] + pd.Timedelta(hours=5, minutes=30)
+            
             # Convert date column to string format for consistent comparison
             if 'date' in df.columns:
                 if df['date'].dtype == 'object' and len(df) > 0:
@@ -135,7 +139,7 @@ class DataLoader:
                 elif df['date'].dtype != 'object':
                     df['date'] = df['date'].astype(str)
             
-            # Add time column for filtering
+            # Add time column for filtering (now in IST)
             df['time'] = df['datetime'].dt.time
             
             # Sort by datetime
